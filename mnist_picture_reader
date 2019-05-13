@@ -1,0 +1,107 @@
+package org.jarcem;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
+
+/**
+ * Hello world!
+ */
+public class App {
+    public static final String train_imageg_path = "train-images.idx3-ubyte";
+    public static final String train_labels_path = "train-labels.idx1-ubyte";
+
+    public static void main(String[] args) throws Exception {
+//        String str = "";
+//
+//        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(new File(App.class.getClassLoader().getResource(train_imageg_path).getFile()))), "utf-8"));
+//
+//        while ((str = bufferedReader.readLine()) != null){
+//            System.out.println(str);
+//        }
+
+        int[][] images = getImages(train_imageg_path);
+        int[] labels = getLabels(train_labels_path);
+
+
+
+        drawGrayPicture(images[0], 28, 28, "test_picture.jpg");
+    }
+
+    public static int[][] getImages(String fileName) {
+        int[][] x = null;
+//        try (BufferedInputStream bin = new BufferedInputStream(new FileInputStream(fileName))) {
+        try (BufferedInputStream bin = new BufferedInputStream(new FileInputStream(App.class.getClassLoader().getResource(fileName).getFile()))) {
+            byte[] bytes = new byte[4];
+            bin.read(bytes, 0, 4);
+            if (!"00000803".equals(bytesToHex(bytes))) {                        // 读取魔数
+                throw new RuntimeException("Please select the correct file!");
+            } else {
+                bin.read(bytes, 0, 4);
+                int number = Integer.parseInt(bytesToHex(bytes), 16);           // 读取样本总数
+                bin.read(bytes, 0, 4);
+                int xPixel = Integer.parseInt(bytesToHex(bytes), 16);           // 读取每行所含像素点数
+                bin.read(bytes, 0, 4);
+                int yPixel = Integer.parseInt(bytesToHex(bytes), 16);           // 读取每列所含像素点数
+                x = new int[number][xPixel * yPixel];
+                for (int i = 0; i < number; i++) {
+                    int[] element = new int[xPixel * yPixel];
+                    for (int j = 0; j < xPixel * yPixel; j++) {
+                        element[j] = bin.read();                                // 逐一读取像素值
+                        // normalization
+//                        element[j] = bin.read() / 255.0;
+                    }
+                    x[i] = element;
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return x;
+    }
+
+    public static int[] getLabels(String fileName) {
+        int[] y = null;
+        try (BufferedInputStream bin = new BufferedInputStream(new FileInputStream(App.class.getClassLoader().getResource(fileName).getFile()))) {
+            byte[] bytes = new byte[4];
+            bin.read(bytes, 0, 4);
+            if (!"00000801".equals(bytesToHex(bytes))) {
+                throw new RuntimeException("Please select the correct file!");
+            } else {
+                bin.read(bytes, 0, 4);
+                int number = Integer.parseInt(bytesToHex(bytes), 16);
+                y = new int[number];
+                for (int i = 0; i < number; i++) {
+                    y[i] = bin.read();
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return y;
+    }
+
+    public static String bytesToHex(byte[] bytes) {
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < bytes.length; i++) {
+            String hex = Integer.toHexString(bytes[i] & 0xFF);
+            if (hex.length() < 2) {
+                sb.append(0);
+            }
+            sb.append(hex);
+        }
+        return sb.toString();
+    }
+
+    public static void drawGrayPicture(int[] pixelValues, int width, int high, String file_name) throws Exception {
+        BufferedImage bufferedImage = new BufferedImage(width, high, BufferedImage.TYPE_INT_RGB);
+        for (int i = 0; i < width; i++) {
+            for (int j = 0; j < high; j++) {
+                int pixel = 255 - pixelValues[i * high + j];
+                int value = pixel + (pixel << 8) + (pixel << 16);   // r = g = b 时，正好为灰度
+                bufferedImage.setRGB(j, i, value);
+            }
+        }
+        ImageIO.write(bufferedImage, "JPEG", new File(file_name));
+    }
+}
